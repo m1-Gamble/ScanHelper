@@ -110,6 +110,55 @@
   }
   .card-title i { font-size: 0.85rem; }
 
+  /* Upload mode toggle */
+  .upload-mode-btn {
+    flex: 1;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 9px 14px;
+    background: var(--bg-tertiary);
+    color: var(--text-tertiary);
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .upload-mode-btn:first-child { border-right: 1px solid var(--border); }
+  .upload-mode-btn.active {
+    background: var(--accent-bg);
+    color: var(--accent);
+  }
+  .upload-mode-btn:hover:not(.active) {
+    background: var(--border-light);
+    color: var(--text-secondary);
+  }
+
+  /* Paste textarea */
+  #pasteInput {
+    width: 100%;
+    min-height: 180px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    padding: 12px 14px;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    resize: vertical;
+    outline: none;
+    line-height: 1.6;
+    transition: border-color 0.2s;
+  }
+  #pasteInput:focus {
+    border-color: var(--accent);
+    border-style: solid;
+  }
+  #pasteInput::placeholder { color: var(--text-tertiary); }
+
   /* File Upload */
   .upload-zone {
     border: 2px dashed var(--border);
@@ -564,11 +613,34 @@
   <!-- Step 1: Upload File -->
   <div class="card" id="uploadCard">
     <div class="card-title"><i class="fa-solid fa-file-arrow-up"></i> Step 1 — Load ID List</div>
-    <div class="upload-zone" id="uploadZone">
-      <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
-      <div class="upload-text">Drop your text file here or tap to browse</div>
-      <div class="upload-hint">One 12-digit ID per line</div>
-      <input type="file" id="fileInput" accept=".txt,.csv,.text">
+
+    <!-- Input mode toggle -->
+    <div style="display:flex;gap:0;margin-bottom:14px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
+      <button id="modeFileBtn" class="upload-mode-btn" onclick="setUploadMode('file')">
+        <i class="fa-solid fa-file-arrow-up"></i> Upload File
+      </button>
+      <button id="modePasteBtn" class="upload-mode-btn active" onclick="setUploadMode('paste')">
+        <i class="fa-solid fa-paste"></i> Paste Text
+      </button>
+    </div>
+
+    <!-- File upload -->
+    <div id="fileUploadPanel" style="display:none;">
+      <div class="upload-zone" id="uploadZone">
+        <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+        <div class="upload-text">Drop your text file here or tap to browse</div>
+        <div class="upload-hint">One ID per line</div>
+        <input type="file" id="fileInput" accept=".txt,.csv,.text">
+      </div>
+    </div>
+
+    <!-- Paste text -->
+    <div id="pastePanel">
+      <textarea id="pasteInput" placeholder="Paste your IDs here, one per line…" spellcheck="false"></textarea>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
+        <span id="pasteLineCount" style="font-size:0.78rem;color:var(--text-tertiary);">0 lines</span>
+        <button class="btn btn-primary" id="pasteLoadBtn" disabled><i class="fa-solid fa-check"></i> Load IDs</button>
+      </div>
     </div>
   </div>
 
@@ -576,9 +648,9 @@
   <div class="card" id="inputCard" style="display:none;">
     <div class="card-title"><i class="fa-solid fa-keyboard"></i> Step 2 — Enter Barcode</div>
     <div class="input-row">
-      <input type="text" id="barcodeInput" placeholder="Scan or enter barcode (up to 60 digits)…" maxlength="60" autocomplete="off">
+      <input type="text" id="barcodeInput" placeholder="Scan or enter barcode (min 5 digits)…" maxlength="60" autocomplete="off">
       <button class="btn btn-primary" id="scanBtn" disabled=""><i class="fa-solid fa-plus"></i> Add</button>
-      <div class="trim-hint" style="font-size:0.75rem;color:var(--text-tertiary);margin-top:4px;">Last 12 digits will be used for matching</div>
+      <div class="trim-hint" style="font-size:0.75rem;color:var(--text-tertiary);margin-top:4px;">Enter 5–12 digits — matches against the end of each ID</div>
     </div>
     <div class="input-feedback" id="inputFeedback"></div>
 
@@ -671,6 +743,32 @@
     }
   });
 
+  // ——— Persistence ———
+  var STORAGE_KEY = "inventoryTrackerState";
+
+  function saveState() {
+    try {
+      var state = {
+        allIds: allIds,
+        last12Map: last12Map,
+        scanLog: scanLog
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch(e) { /* storage full or unavailable */ }
+  }
+
+  function loadState() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch(e) { return null; }
+  }
+
+  function clearState() {
+    try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+  }
+
   // State
   var allIds = [];           // Array of { fullId: string, last12: string, received: boolean }
   var last12Map = {};        // Map<last12, [indices]> for quick lookup
@@ -706,6 +804,68 @@
   var exportBtn = document.getElementById("exportBtn");
   var exportMissingBtn = document.getElementById("exportMissingBtn");
   var resetBtn = document.getElementById("resetBtn");
+
+  // ——— Restore saved state on load ———
+  (function restoreState() {
+    var saved = loadState();
+    if (!saved || !saved.allIds || saved.allIds.length === 0) return;
+
+    allIds = saved.allIds;
+    last12Map = saved.last12Map || {};
+    scanLog = saved.scanLog || [];
+
+    // Rebuild last12Map if missing (safety fallback)
+    if (Object.keys(last12Map).length === 0) {
+      for (var i = 0; i < allIds.length; i++) {
+        var l12 = allIds[i].last12;
+        if (!last12Map[l12]) last12Map[l12] = [];
+        last12Map[l12].push(i);
+      }
+    }
+
+    var received = 0;
+    for (var k = 0; k < allIds.length; k++) { if (allIds[k].received) received++; }
+
+    // Restore upload zone appearance
+    uploadZone.classList.add("has-file");
+    uploadZone.querySelector(".upload-icon").className = "fa-solid fa-circle-check upload-icon";
+    uploadZone.querySelector(".upload-text").textContent = allIds.length + " IDs loaded — session restored";
+    uploadZone.querySelector(".upload-hint").textContent = received + " received, " + (allIds.length - received) + " remaining";
+
+    inputCard.style.display = "";
+    dashboardCard.style.display = "";
+    updateDashboard();
+    updateScanHistory();
+  })();
+
+  var pasteInput = document.getElementById("pasteInput");
+  var pasteLoadBtn = document.getElementById("pasteLoadBtn");
+  var pasteLineCount = document.getElementById("pasteLineCount");
+
+  // ——— Upload mode toggle ———
+  function setUploadMode(mode) {
+    document.getElementById("fileUploadPanel").style.display = mode === "file" ? "" : "none";
+    document.getElementById("pastePanel").style.display = mode === "paste" ? "" : "none";
+    document.getElementById("modeFileBtn").classList.toggle("active", mode === "file");
+    document.getElementById("modePasteBtn").classList.toggle("active", mode === "paste");
+    if (mode === "paste") pasteInput.focus();
+  }
+  window.setUploadMode = setUploadMode;
+
+  // Paste textarea — count lines and enable button
+  pasteInput.addEventListener("input", function() {
+    var lines = this.value.split(/[\r\n]+/).filter(function(l) { return l.trim().length >= 5; });
+    pasteLineCount.textContent = lines.length + " line" + (lines.length !== 1 ? "s" : "");
+    pasteLoadBtn.disabled = lines.length === 0;
+  });
+
+  pasteLoadBtn.addEventListener("click", function() {
+    if (pasteInput.value.trim()) {
+      parseIds(pasteInput.value);
+      // Switch back to file tab view so upload zone shows the success state
+      setUploadMode("file");
+    }
+  });
 
   // ——— File Upload ———
   uploadZone.addEventListener("dragover", function(e) {
@@ -772,6 +932,7 @@
     barcodeInput.value = "";
     inputFeedback.textContent = "";
     updateDashboard();
+    saveState();
     barcodeInput.focus();
   }
 
@@ -779,32 +940,47 @@
   barcodeInput.addEventListener("input", function() {
     // Allow only digits, up to 60
     this.value = this.value.replace(/\D/g, "").slice(0, 60);
-    scanBtn.disabled = this.value.length < 12;
-    if (this.value.length < 12) {
+    scanBtn.disabled = this.value.length < 5;
+    if (this.value.length < 5) {
       inputFeedback.textContent = "";
       inputFeedback.className = "input-feedback";
     }
   });
 
   barcodeInput.addEventListener("keydown", function(e) {
-    if (e.key === "Enter" && this.value.length >= 12) {
+    if (e.key === "Enter" && this.value.length >= 5) {
       e.preventDefault();
       processBarcode(this.value);
     }
   });
 
   scanBtn.addEventListener("click", function() {
-    if (barcodeInput.value.length >= 12) {
+    if (barcodeInput.value.length >= 5) {
       processBarcode(barcodeInput.value);
     }
   });
 
   function processBarcode(rawCode) {
-    // Trim to last 12 digits for matching
-    var code = rawCode.slice(-12);
     var now = new Date();
     var timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    var indices = last12Map[code];
+
+    // If input is 12+ digits, use last 12 for exact map lookup (fast path)
+    // If input is shorter (5–11 digits), do suffix match against all last12 values
+    var indices;
+    var code; // the suffix used for matching (shown in feedback)
+
+    if (rawCode.length >= 12) {
+      code = rawCode.slice(-12);
+      indices = last12Map[code] || [];
+    } else {
+      code = rawCode; // short code — match as suffix
+      indices = [];
+      for (var si = 0; si < allIds.length; si++) {
+        if (allIds[si].last12.slice(-code.length) === code) {
+          indices.push(si);
+        }
+      }
+    }
 
     if (!indices || indices.length === 0) {
       // No match
@@ -837,6 +1013,7 @@
     scanBtn.disabled = true;
     updateDashboard();
     updateScanHistory();
+    saveState();
     barcodeInput.focus();
   }
 
@@ -998,12 +1175,17 @@
       uploadZone.querySelector(".upload-text").textContent = "Drop your text file here or tap to browse";
       uploadZone.querySelector(".upload-hint").textContent = "One 12-digit ID per line";
       fileInput.value = "";
+      pasteInput.value = "";
+      pasteLineCount.textContent = "0 lines";
+      pasteLoadBtn.disabled = true;
+      setUploadMode("file");
       inputCard.style.display = "none";
       dashboardCard.style.display = "none";
       // Reset tab
       activeTab = "all";
       document.querySelectorAll(".tab-btn").forEach(function(b) { b.classList.remove("active"); });
       document.querySelector('.tab-btn[data-tab="all"]').classList.add("active");
+      clearState();
     });
   });
 
