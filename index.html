@@ -380,6 +380,26 @@
     color: var(--accent);
   }
 
+  /* Section separator row */
+  .list-separator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    position: sticky;
+    top: 37px; /* sits below the list header */
+    z-index: 1;
+  }
+  .list-separator i { font-size: 0.7rem; }
+
   /* Table List */
   .list-container {
     max-height: 400px;
@@ -903,10 +923,23 @@
     last12Map = {};
 
     var skipped = 0;
+    var duplicates = 0;
+    var seen = {};
+
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i].trim();
       if (!line) continue;
-      if (line.length < 12) { skipped++; continue; }
+
+      // R-string separator — store as section header, exclude from counts
+      if (/^R/i.test(line)) {
+        allIds.push({ separator: true, label: line });
+        continue;
+      }
+
+      if (line.length < 5) { skipped++; continue; }
+      // Deduplicate by fullId
+      if (seen[line]) { duplicates++; continue; }
+      seen[line] = true;
       var last12 = line.slice(-12);
       var idx = allIds.length;
       allIds.push({ fullId: line, last12: last12, received: false });
@@ -914,16 +947,26 @@
       last12Map[last12].push(idx);
     }
 
-    if (allIds.length === 0) {
-      showToast("No valid IDs found in file.");
+    // Count only real IDs (not separators)
+    var idCount = 0;
+    for (var k = 0; k < allIds.length; k++) { if (!allIds[k].separator) idCount++; }
+
+    if (idCount === 0) {
+      showToast("No valid IDs found.");
       return;
     }
+
+    // Build hint message
+    var hintParts = [];
+    if (duplicates > 0) hintParts.push(duplicates + " duplicate" + (duplicates !== 1 ? "s" : "") + " removed");
+    if (skipped > 0) hintParts.push(skipped + " line" + (skipped !== 1 ? "s" : "") + " skipped (too short)");
+    if (hintParts.length === 0) hintParts.push("Tap to upload a different file");
 
     // Update upload zone
     uploadZone.classList.add("has-file");
     uploadZone.querySelector(".upload-icon").className = "fa-solid fa-circle-check upload-icon";
-    uploadZone.querySelector(".upload-text").textContent = allIds.length + " IDs loaded successfully";
-    uploadZone.querySelector(".upload-hint").textContent = skipped > 0 ? (skipped + " lines skipped (too short)") : "Tap to upload a different file";
+    uploadZone.querySelector(".upload-text").textContent = idCount + " IDs loaded successfully";
+    uploadZone.querySelector(".upload-hint").textContent = hintParts.join(" · ");
 
     // Show other sections
     inputCard.style.display = "";
@@ -976,6 +1019,7 @@
       code = rawCode; // short code — match as suffix
       indices = [];
       for (var si = 0; si < allIds.length; si++) {
+        if (allIds[si].separator) continue;
         if (allIds[si].last12.slice(-code.length) === code) {
           indices.push(si);
         }
@@ -1039,9 +1083,11 @@
 
   // ——— Dashboard ———
   function updateDashboard() {
-    var total = allIds.length;
+    var total = 0;
     var received = 0;
     for (var i = 0; i < allIds.length; i++) {
+      if (allIds[i].separator) continue;
+      total++;
       if (allIds[i].received) received++;
     }
     var missing = total - received;
@@ -1081,8 +1127,18 @@
   // ——— Render List ———
   function renderList() {
     var filtered = [];
+    var lastSepIndex = -1; // track pending separator
+
     for (var i = 0; i < allIds.length; i++) {
       var item = allIds[i];
+
+      if (item.separator) {
+        // Hold separator — only emit it if a real item follows in this view
+        lastSepIndex = filtered.length; // position to insert it
+        filtered.push({ index: i, item: item, isSeparator: true, used: false });
+        continue;
+      }
+
       // Tab filter
       if (activeTab === "received" && !item.received) continue;
       if (activeTab === "missing" && item.received) continue;
@@ -1091,20 +1147,39 @@
         var haystack = (item.fullId + " " + item.last12).toLowerCase();
         if (haystack.indexOf(searchQuery) === -1) continue;
       }
-      filtered.push({ index: i, item: item });
+
+      // Mark the most recent pending separator as used
+      if (lastSepIndex >= 0 && !filtered[lastSepIndex].used) {
+        filtered[lastSepIndex].used = true;
+      }
+      lastSepIndex = -1;
+      filtered.push({ index: i, item: item, isSeparator: false });
     }
 
-    if (filtered.length === 0) {
+    // Remove unused separators (no items followed them in this view)
+    filtered = filtered.filter(function(f) { return !f.isSeparator || f.used; });
+
+    // Count only real items for empty-state check
+    var realCount = filtered.filter(function(f) { return !f.isSeparator; }).length;
+
+    if (realCount === 0) {
       listBody.innerHTML = '<div class="empty-state"><i class="fa-solid fa-inbox"></i><p>' +
-        (allIds.length === 0 ? "Upload a file to get started" : "No items match your filter") + '</p></div>';
+        (allIds.filter(function(a) { return !a.separator; }).length === 0 ? "Upload a file to get started" : "No items match your filter") + '</p></div>';
       return;
     }
 
-    // Virtual-ish rendering: limit to 200 rows for perf
-    var limit = Math.min(filtered.length, 200);
+    // Render (limit to 200 real rows for perf)
+    var limit = 200;
+    var realSeen = 0;
     var html = "";
-    for (var j = 0; j < limit; j++) {
+    for (var j = 0; j < filtered.length; j++) {
       var f = filtered[j];
+      if (f.isSeparator) {
+        html += '<div class="list-separator"><i class="fa-solid fa-layer-group"></i> ' + escapeHtml(f.item.label) + '</div>';
+        continue;
+      }
+      if (realSeen >= limit) break;
+      realSeen++;
       var statusClass = f.item.received ? "received" : "missing";
       var statusText = f.item.received ? "Received" : "Missing";
       html += '<div class="list-row">';
@@ -1114,8 +1189,8 @@
       html += '<span><span class="status-badge ' + statusClass + '">' + statusText + '</span></span>';
       html += '</div>';
     }
-    if (filtered.length > limit) {
-      html += '<div class="empty-state" style="padding:16px;"><p>Showing first 200 of ' + filtered.length + ' results</p></div>';
+    if (realCount > limit) {
+      html += '<div class="empty-state" style="padding:16px;"><p>Showing first 200 of ' + realCount + ' results</p></div>';
     }
     listBody.innerHTML = html;
   }
