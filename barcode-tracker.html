@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventory Barcode Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  :root {
+    --bg-primary: #F0EDE6;
+    --bg-secondary: #FFFFFF;
+    --bg-tertiary: #F7F5F0;
+    --text-primary: #1A1A1A;
+    --text-secondary: #5A5A5A;
+    --text-tertiary: #8A8A8A;
+    --accent: #2D5A27;
+    --accent-light: #3D7A35;
+    --accent-bg: #E8F0E6;
+    --danger: #B5332E;
+    --danger-bg: #FCEAE9;
+    --warning: #C47F17;
+    --warning-bg: #FFF3D6;
+    --success: #2D5A27;
+    --success-bg: #E8F0E6;
+    --border: #D8D4CC;
+    --border-light: #E8E4DC;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-lg: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+    --radius: 10px;
+    --radius-lg: 14px;
+  }
+
+  html.dark {
+    --bg-primary: #131516;
+    --bg-secondary: #1C1F21;
+    --bg-tertiary: #232729;
+    --text-primary: #E8E4DC;
+    --text-secondary: #A0A0A0;
+    --text-tertiary: #686868;
+    --accent: #6BBF59;
+    --accent-light: #7DD96A;
+    --accent-bg: #1E2E1C;
+    --danger: #E85550;
+    --danger-bg: #2E1A19;
+    --warning: #E8A830;
+    --warning-bg: #2E2510;
+    --success: #6BBF59;
+    --success-bg: #1E2E1C;
+    --border: #2E3234;
+    --border-light: #262A2C;
+    --shadow: 0 1px 3px rgba(0,0,0,0.2), 0 1px 2px rgba(0,0,0,0.15);
+    --shadow-lg: 0 4px 12px rgba(0,0,0,0.3), 0 2px 4px rgba(0,0,0,0.2);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+
+  .app-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px 16px 40px;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    padding: 24px 0 20px;
+    margin-bottom: 20px;
+  }
+  .header h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text-primary);
+  }
+  .header h1 i { color: var(--accent); margin-right: 8px; }
+  .header p {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    margin-top: 6px;
+  }
+
+  /* Persistence badge */
+  .persist-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--accent-bg);
+    border: 1px solid var(--accent);
+    border-radius: 20px;
+    padding: 3px 10px;
+    margin-top: 8px;
+    opacity: 0.85;
+  }
+
+  /* Cards */
+  .card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .card-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-tertiary);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title i { font-size: 0.85rem; }
+
+  /* File Upload */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 28px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent);
+    background: var(--accent-bg);
+  }
+  .upload-zone.has-file {
+    border-color: var(--success);
+    border-style: solid;
+    background: var(--success-bg);
+  }
+  .upload-zone i.upload-icon {
+    font-size: 1.8rem;
+    color: var(--text-tertiary);
+    margin-bottom: 8px;
+    display: block;
+  }
+  .upload-zone.has-file i.upload-icon { color: var(--success); }
+  .upload-zone .upload-text {
+    font-size: 0.92rem;
+    color: var(--text-secondary);
+  }
+  .upload-zone .upload-hint {
+    font-size: 0.78rem;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+  }
+  .upload-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  /* Barcode Input */
+  .input-row {
+    display: flex;
+    gap: 10px;
+  }
+  .input-row input {
+    flex: 1;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    padding: 12px 16px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.2s;
+    letter-spacing: 2px;
+  }
+  .input-row input:focus {
+    border-color: var(--accent);
+  }
+  .input-row input::placeholder {
+    letter-spacing: 0;
+    color: var(--text-tertiary);
+    font-size: 16px;
+  }
+  .btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 12px 20px;
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+  .btn-primary:hover { background: var(--accent-light); }
+  .btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .btn-secondary {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover {
+    background: var(--border-light);
+    color: var(--text-primary);
+  }
+  .btn-danger {
+    background: var(--danger-bg);
+    color: var(--danger);
+    border: 1px solid transparent;
+  }
+  .btn-danger:hover {
+    background: var(--danger);
+    color: #fff;
+  }
+
+  .input-feedback {
+    font-size: 0.82rem;
+    margin-top: 8px;
+    min-height: 22px;
+    font-weight: 500;
+  }
+  .input-feedback.success { color: var(--success); }
+  .input-feedback.error { color: var(--danger); }
+  .input-feedback.warning { color: var(--warning); }
+
+  /* Stats Grid */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .stat-box {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 16px 14px;
+    text-align: center;
+  }
+  .stat-number {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.8rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .stat-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+  }
+  .stat-box.total .stat-number { color: var(--text-primary); }
+  .stat-box.received .stat-number { color: var(--success); }
+  .stat-box.missing .stat-number { color: var(--danger); }
+
+  /* Progress Bar */
+  .progress-wrap {
+    margin-bottom: 20px;
+  }
+  .progress-bar-bg {
+    height: 10px;
+    background: var(--bg-tertiary);
+    border-radius: 5px;
+    overflow: hidden;
+    border: 1px solid var(--border-light);
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 5px;
+    transition: width 0.4s ease;
+    min-width: 0;
+  }
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    color: var(--text-tertiary);
+    margin-top: 6px;
+    font-weight: 500;
+  }
+
+  /* Tabs */
+  .tab-bar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--border-light);
+    padding-bottom: 0;
+  }
+  .tab-btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 8px 16px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .tab-btn:hover { color: var(--text-secondary); }
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .tab-btn .badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    padding: 1px 7px;
+    border-radius: 10px;
+    background: var(--bg-tertiary);
+    color: var(--text-tertiary);
+    font-weight: 600;
+  }
+  .tab-btn.active .badge {
+    background: var(--accent-bg);
+    color: var(--accent);
+  }
+
+  /* Table List */
+  .list-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+  }
+  .list-container::-webkit-scrollbar { width: 6px; }
+  .list-container::-webkit-scrollbar-track { background: transparent; }
+  .list-container::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+  }
+
+  .list-header {
+    display: grid;
+    grid-template-columns: 44px 1fr 140px 80px;
+    padding: 10px 14px;
+    background: var(--bg-tertiary);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-tertiary);
+    border-bottom: 1px solid var(--border-light);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  .list-row {
+    display: grid;
+    grid-template-columns: 44px 1fr 140px 80px;
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    border-bottom: 1px solid var(--border-light);
+    align-items: center;
+    transition: background 0.1s;
+  }
+  .list-row:last-child { border-bottom: none; }
+  .list-row:hover { background: var(--bg-tertiary); }
+  .list-row .row-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+  }
+  .list-row .row-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--text-primary);
+    word-break: break-all;
+  }
+  .list-row .row-last8 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+  }
+  .status-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 6px;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    width: fit-content;
+  }
+  .status-badge.received {
+    background: var(--success-bg);
+    color: var(--success);
+  }
+  .status-badge.missing {
+    background: var(--danger-bg);
+    color: var(--danger);
+  }
+
+  /* Search/Filter */
+  .filter-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .filter-row input {
+    flex: 1;
+    min-width: 180px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    padding: 9px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    outline: none;
+  }
+  .filter-row input:focus { border-color: var(--accent); }
+  .filter-row input::placeholder { color: var(--text-tertiary); font-size: 0.85rem; letter-spacing: 0; }
+
+  /* Actions bar */
+  .actions-bar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-tertiary);
+  }
+  .empty-state i {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    display: block;
+  }
+  .empty-state p {
+    font-size: 0.88rem;
+  }
+
+  /* History */
+  .scan-history {
+    margin-top: 10px;
+  }
+  .scan-entry {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .scan-entry:last-child { border-bottom: none; }
+  .scan-entry .scan-code { color: var(--text-primary); }
+  .scan-entry .scan-time { color: var(--text-tertiary); font-size: 0.75rem; }
+  .scan-entry .scan-status { font-size: 0.75rem; font-weight: 600; }
+  .scan-entry .scan-status.matched { color: var(--success); }
+  .scan-entry .scan-status.no-match { color: var(--warning); }
+  .scan-entry .scan-status.duplicate { color: var(--text-tertiary); }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .stats-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .stat-box { padding: 12px 8px; }
+    .stat-number { font-size: 1.4rem; }
+    .list-header, .list-row {
+      grid-template-columns: 34px 1fr 80px;
+    }
+    .list-header .col-last8, .list-row .row-last8 {
+      display: none;
+    }
+    .input-row { flex-direction: column; }
+    .header h1 { font-size: 1.25rem; }
+    .actions-bar { flex-direction: column; }
+    .actions-bar .btn { justify-content: center; }
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+    animation: fadeIn 0.15s ease;
+  }
+  .modal-box {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    max-width: 400px;
+    width: 100%;
+    box-shadow: var(--shadow-lg);
+  }
+  .modal-box h3 {
+    font-size: 1rem;
+    margin-bottom: 10px;
+  }
+  .modal-box p {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    margin-bottom: 18px;
+  }
+  .modal-box .modal-warning {
+    font-size: 0.82rem;
+    color: var(--danger);
+    background: var(--danger-bg);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .modal-box .modal-warning i { margin-top: 1px; flex-shrink: 0; }
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 20px;
+    font-size: 0.85rem;
+    box-shadow: var(--shadow-lg);
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: slideUp 0.25s ease;
+    white-space: nowrap;
+  }
+  .toast .btn { padding: 6px 14px; font-size: 0.8rem; }
+  @keyframes slideUp {
+    from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+    to { transform: translateX(-50%) translateY(0); opacity: 1; }
+  }
+
+  /* Storage indicator pulse */
+  @keyframes savePulse {
+    0%   { opacity: 1; }
+    50%  { opacity: 0.4; }
+    100% { opacity: 1; }
+  }
+  .saving { animation: savePulse 0.6s ease; }
+</style>
+</head>
+<body>
+<div class="app-container">
+  <!-- Header -->
+  <div class="header">
+    <h1><i class="fa-solid fa-barcode"></i>Barcode Tracker</h1>
+    <p>Upload IDs, scan barcodes, track inventory</p>
+    <div class="persist-badge" id="persistBadge" style="display:none;">
+      <i class="fa-solid fa-floppy-disk"></i> Data saved — refreshing is safe
+    </div>
+  </div>
+
+  <!-- Step 1: Upload File -->
+  <div class="card" id="uploadCard">
+    <div class="card-title"><i class="fa-solid fa-file-arrow-up"></i> Step 1 — Load ID List</div>
+    <div class="upload-zone" id="uploadZone">
+      <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+      <div class="upload-text">Drop your text file here or tap to browse</div>
+      <div class="upload-hint">One ID per line (12+ digits; last 12 used for matching)</div>
+      <input type="file" id="fileInput" accept=".txt,.csv,.text">
+    </div>
+  </div>
+
+  <!-- Step 2: Barcode Input -->
+  <div class="card" id="inputCard" style="display:none;">
+    <div class="card-title"><i class="fa-solid fa-keyboard"></i> Step 2 — Enter Barcode</div>
+    <div class="input-row">
+      <input type="text" id="barcodeInput" placeholder="Scan or enter barcode (up to 60 digits)…" maxlength="60" autocomplete="off" inputmode="numeric">
+      <button class="btn btn-primary" id="scanBtn" disabled><i class="fa-solid fa-plus"></i> Add</button>
+    </div>
+    <div style="font-size:0.75rem;color:var(--text-tertiary);margin-top:4px;">Last 12 digits will be used for matching</div>
+    <div class="input-feedback" id="inputFeedback"></div>
+
+    <!-- Recent scans -->
+    <div class="scan-history" id="scanHistory" style="display:none;">
+      <div class="card-title" style="margin-top:14px;margin-bottom:8px;"><i class="fa-solid fa-clock-rotate-left"></i> Recent Scans</div>
+      <div id="scanHistoryList"></div>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="card" id="dashboardCard" style="display:none;">
+    <div class="card-title"><i class="fa-solid fa-chart-simple"></i> Dashboard</div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-box total">
+        <div class="stat-number" id="statTotal">0</div>
+        <div class="stat-label">Total IDs</div>
+      </div>
+      <div class="stat-box received">
+        <div class="stat-number" id="statReceived">0</div>
+        <div class="stat-label">Received</div>
+      </div>
+      <div class="stat-box missing">
+        <div class="stat-number" id="statMissing">0</div>
+        <div class="stat-label">Missing</div>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-wrap">
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+      </div>
+      <div class="progress-label">
+        <span id="progressPercent">0% received</span>
+        <span id="progressRemain">0 remaining</span>
+      </div>
+    </div>
+
+    <!-- Filter + Actions -->
+    <div class="filter-row">
+      <input type="text" id="searchInput" placeholder="Search by ID or last 12 digits…">
+    </div>
+    <div class="actions-bar" style="margin-bottom:14px;">
+      <button class="btn btn-secondary" id="exportBtn"><i class="fa-solid fa-download"></i> Export CSV</button>
+      <button class="btn btn-secondary" id="exportMissingBtn"><i class="fa-solid fa-file-export"></i> Export Missing</button>
+      <button class="btn btn-secondary" id="resetScansBtn"><i class="fa-solid fa-rotate-left"></i> Reset Scans</button>
+      <button class="btn btn-danger" id="resetBtn"><i class="fa-solid fa-trash-can"></i> Reset All Data</button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="all">All <span class="badge" id="badgeAll">0</span></button>
+      <button class="tab-btn" data-tab="received"><i class="fa-solid fa-circle-check" style="color:var(--success);font-size:0.7rem;"></i> Received <span class="badge" id="badgeReceived">0</span></button>
+      <button class="tab-btn" data-tab="missing"><i class="fa-solid fa-circle-xmark" style="color:var(--danger);font-size:0.7rem;"></i> Missing <span class="badge" id="badgeMissing">0</span></button>
+    </div>
+
+    <!-- List -->
+    <div class="list-container" id="listContainer">
+      <div class="list-header">
+        <span>#</span>
+        <span>Full ID</span>
+        <span class="col-last8">Last 12</span>
+        <span>Status</span>
+      </div>
+      <div id="listBody"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal container -->
+<div id="modalContainer"></div>
+<!-- Toast container -->
+<div id="toastContainer"></div>
+
+<script>
+(function() {
+  "use strict";
+
+  // ——— Storage key ———
+  var STORAGE_KEY = "barcode_tracker_v1";
+
+  // ——— Dark mode ———
+  if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+    document.documentElement.classList.add("dark");
+  }
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function(e) {
+    document.documentElement.classList.toggle("dark", e.matches);
+  });
+
+  // ——— State ———
+  var allIds = [];       // [{ fullId, last12, received }]
+  var last12Map = {};    // Map<last12, [indices]>
+  var scanLog = [];      // [{ code, time, status }]
+  var activeTab = "all";
+  var searchQuery = "";
+  var saveTimer = null;
+
+  // ——— DOM refs ———
+  var uploadZone      = document.getElementById("uploadZone");
+  var fileInput       = document.getElementById("fileInput");
+  var uploadCard      = document.getElementById("uploadCard");
+  var inputCard       = document.getElementById("inputCard");
+  var dashboardCard   = document.getElementById("dashboardCard");
+  var barcodeInput    = document.getElementById("barcodeInput");
+  var scanBtn         = document.getElementById("scanBtn");
+  var inputFeedback   = document.getElementById("inputFeedback");
+  var scanHistory     = document.getElementById("scanHistory");
+  var scanHistoryList = document.getElementById("scanHistoryList");
+  var statTotal       = document.getElementById("statTotal");
+  var statReceived    = document.getElementById("statReceived");
+  var statMissing     = document.getElementById("statMissing");
+  var progressFill    = document.getElementById("progressFill");
+  var progressPercent = document.getElementById("progressPercent");
+  var progressRemain  = document.getElementById("progressRemain");
+  var badgeAll        = document.getElementById("badgeAll");
+  var badgeReceived   = document.getElementById("badgeReceived");
+  var badgeMissing    = document.getElementById("badgeMissing");
+  var searchInput     = document.getElementById("searchInput");
+  var listBody        = document.getElementById("listBody");
+  var exportBtn       = document.getElementById("exportBtn");
+  var exportMissingBtn= document.getElementById("exportMissingBtn");
+  var resetScansBtn   = document.getElementById("resetScansBtn");
+  var resetBtn        = document.getElementById("resetBtn");
+  var persistBadge    = document.getElementById("persistBadge");
+
+  // ============================================================
+  // PERSISTENCE — localStorage
+  // ============================================================
+
+  function saveState() {
+    try {
+      var state = {
+        allIds: allIds,
+        scanLog: scanLog,
+        activeTab: activeTab,
+        savedAt: new Date().toISOString()
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      // Flash the badge to confirm save
+      persistBadge.classList.remove("saving");
+      void persistBadge.offsetWidth; // reflow
+      persistBadge.classList.add("saving");
+    } catch (e) {
+      // Storage full or private browsing — silently continue
+      console.warn("Could not save to localStorage:", e);
+    }
+  }
+
+  function scheduleSave() {
+    // Debounce: don't write on every keystroke
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveState, 400);
+  }
+
+  function loadState() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return false;
+      var state = JSON.parse(raw);
+      if (!state || !Array.isArray(state.allIds) || state.allIds.length === 0) return false;
+
+      allIds = state.allIds;
+      scanLog = Array.isArray(state.scanLog) ? state.scanLog : [];
+      activeTab = state.activeTab || "all";
+
+      // Rebuild last12Map
+      last12Map = {};
+      for (var i = 0; i < allIds.length; i++) {
+        var l12 = allIds[i].last12;
+        if (!last12Map[l12]) last12Map[l12] = [];
+        last12Map[l12].push(i);
+      }
+
+      return true;
+    } catch (e) {
+      console.warn("Could not load saved state:", e);
+      return false;
+    }
+  }
+
+  function clearStorage() {
+    try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+  }
+
+  // ——— Restore UI from saved state ———
+  function restoreUIFromState(savedAt) {
+    // Count received
+    var receivedCount = 0;
+    for (var i = 0; i < allIds.length; i++) {
+      if (allIds[i].received) receivedCount++;
+    }
+
+    // Upload zone
+    uploadZone.classList.add("has-file");
+    uploadZone.querySelector(".upload-icon").className = "fa-solid fa-circle-check upload-icon";
+    uploadZone.querySelector(".upload-text").textContent = allIds.length + " unique IDs loaded";
+    var ts = savedAt ? new Date(savedAt).toLocaleString() : "";
+    uploadZone.querySelector(".upload-hint").textContent =
+      "Restored from saved session" + (ts ? " · " + ts : "");
+
+    inputCard.style.display = "";
+    dashboardCard.style.display = "";
+    persistBadge.style.display = "";
+
+    // Restore active tab
+    document.querySelectorAll(".tab-btn").forEach(function(b) { b.classList.remove("active"); });
+    var activeTabBtn = document.querySelector('.tab-btn[data-tab="' + activeTab + '"]');
+    if (activeTabBtn) activeTabBtn.classList.add("active");
+
+    updateDashboard();
+    updateScanHistory();
+  }
+
+  // ============================================================
+  // ON LOAD — try to restore
+  // ============================================================
+  (function init() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      var state = JSON.parse(raw);
+      if (!state || !Array.isArray(state.allIds) || state.allIds.length === 0) return;
+
+      allIds = state.allIds;
+      scanLog = Array.isArray(state.scanLog) ? state.scanLog : [];
+      activeTab = state.activeTab || "all";
+
+      last12Map = {};
+      for (var i = 0; i < allIds.length; i++) {
+        var l12 = allIds[i].last12;
+        if (!last12Map[l12]) last12Map[l12] = [];
+        last12Map[l12].push(i);
+      }
+
+      restoreUIFromState(state.savedAt);
+    } catch (e) {
+      console.warn("State restore failed:", e);
+    }
+  })();
+
+  // ============================================================
+  // FILE UPLOAD
+  // ============================================================
+  uploadZone.addEventListener("dragover", function(e) {
+    e.preventDefault();
+    uploadZone.classList.add("dragover");
+  });
+  uploadZone.addEventListener("dragleave", function() {
+    uploadZone.classList.remove("dragover");
+  });
+  uploadZone.addEventListener("drop", function(e) {
+    e.preventDefault();
+    uploadZone.classList.remove("dragover");
+    if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener("change", function() {
+    if (fileInput.files.length > 0) handleFile(fileInput.files[0]);
+  });
+
+  function handleFile(file) {
+    var reader = new FileReader();
+    reader.onload = function(e) { parseIds(e.target.result, file.name); };
+    reader.readAsText(file);
+  }
+
+  function parseIds(text, filename) {
+    var lines = text.split(/[\r\n]+/);
+    allIds = [];
+    last12Map = {};
+    scanLog = [];
+
+    var skipped = 0, duplicates = 0, seen = {};
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (!line) continue;
+      if (line.length < 12) { skipped++; continue; }
+      if (seen[line]) { duplicates++; continue; }
+      seen[line] = true;
+      var last12 = line.slice(-12);
+      var idx = allIds.length;
+      allIds.push({ fullId: line, last12: last12, received: false });
+      if (!last12Map[last12]) last12Map[last12] = [];
+      last12Map[last12].push(idx);
+    }
+
+    if (allIds.length === 0) {
+      showToast("No valid IDs found in file.");
+      return;
+    }
+
+    uploadZone.classList.add("has-file");
+    uploadZone.querySelector(".upload-icon").className = "fa-solid fa-circle-check upload-icon";
+    uploadZone.querySelector(".upload-text").textContent = allIds.length + " unique IDs loaded" + (filename ? " from "" + filename + """ : "");
+    var hints = [];
+    if (duplicates > 0) hints.push(duplicates + " duplicate" + (duplicates > 1 ? "s" : "") + " removed");
+    if (skipped > 0) hints.push(skipped + " line" + (skipped > 1 ? "s" : "") + " skipped (too short)");
+    uploadZone.querySelector(".upload-hint").textContent = hints.length > 0 ? hints.join(" · ") : "Tap to upload a different file";
+
+    inputCard.style.display = "";
+    dashboardCard.style.display = "";
+    persistBadge.style.display = "";
+    barcodeInput.value = "";
+    inputFeedback.textContent = "";
+
+    // Restore tab
+    activeTab = "all";
+    document.querySelectorAll(".tab-btn").forEach(function(b) { b.classList.remove("active"); });
+    document.querySelector('.tab-btn[data-tab="all"]').classList.add("active");
+
+    updateDashboard();
+    updateScanHistory();
+    barcodeInput.focus();
+    saveState(); // immediate save after loading file
+  }
+
+  // ============================================================
+  // BARCODE INPUT
+  // ============================================================
+  barcodeInput.addEventListener("input", function() {
+    this.value = this.value.replace(/\D/g, "").slice(0, 60);
+    scanBtn.disabled = this.value.length < 12;
+    if (this.value.length < 12) {
+      inputFeedback.textContent = "";
+      inputFeedback.className = "input-feedback";
+    }
+  });
+
+  barcodeInput.addEventListener("keydown", function(e) {
+    if (e.key === "Enter" && this.value.length >= 12) {
+      e.preventDefault();
+      processBarcode(this.value);
+    }
+  });
+
+  scanBtn.addEventListener("click", function() {
+    if (barcodeInput.value.length >= 12) processBarcode(barcodeInput.value);
+  });
+
+  function processBarcode(rawCode) {
+    var code = rawCode.slice(-12);
+    var now = new Date();
+    var timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    var indices = last12Map[code];
+
+    if (!indices || indices.length === 0) {
+      inputFeedback.textContent = "\u26A0 No matching ID found for \u2026" + code;
+      inputFeedback.className = "input-feedback warning";
+      scanLog.unshift({ code: code, time: timeStr, status: "no-match" });
+    } else {
+      var alreadyDone = true;
+      for (var i = 0; i < indices.length; i++) {
+        if (!allIds[indices[i]].received) { alreadyDone = false; break; }
+      }
+      if (alreadyDone) {
+        inputFeedback.textContent = "\u21BB Already scanned \u2014 \u2026" + code;
+        inputFeedback.className = "input-feedback warning";
+        scanLog.unshift({ code: code, time: timeStr, status: "duplicate" });
+      } else {
+        for (var j = 0; j < indices.length; j++) {
+          allIds[indices[j]].received = true;
+        }
+        var matchCount = indices.length;
+        inputFeedback.textContent = "\u2713 Matched " + matchCount + " ID" + (matchCount > 1 ? "s" : "") + " for \u2026" + code;
+        inputFeedback.className = "input-feedback success";
+        scanLog.unshift({ code: code, time: timeStr, status: "matched" });
+      }
+    }
+
+    barcodeInput.value = "";
+    scanBtn.disabled = true;
+    updateDashboard();
+    updateScanHistory();
+    barcodeInput.focus();
+    scheduleSave(); // persist after each scan
+  }
+
+  function updateScanHistory() {
+    if (scanLog.length === 0) {
+      scanHistory.style.display = "none";
+      return;
+    }
+    scanHistory.style.display = "";
+    var html = "";
+    var limit = Math.min(scanLog.length, 8);
+    for (var i = 0; i < limit; i++) {
+      var s = scanLog[i];
+      var statusLabel = s.status === "matched" ? "Matched" : s.status === "duplicate" ? "Duplicate" : "No match";
+      html += '<div class="scan-entry">';
+      html += '<span class="scan-code">\u2026' + escapeHtml(s.code) + '</span>';
+      html += '<span class="scan-status ' + s.status + '">' + statusLabel + '</span>';
+      html += '<span class="scan-time">' + escapeHtml(s.time) + '</span>';
+      html += '</div>';
+    }
+    scanHistoryList.innerHTML = html;
+  }
+
+  // ============================================================
+  // DASHBOARD
+  // ============================================================
+  function updateDashboard() {
+    var total = allIds.length;
+    var received = 0;
+    for (var i = 0; i < allIds.length; i++) {
+      if (allIds[i].received) received++;
+    }
+    var missing = total - received;
+    var pct = total > 0 ? Math.round((received / total) * 100) : 0;
+
+    statTotal.textContent = total;
+    statReceived.textContent = received;
+    statMissing.textContent = missing;
+
+    progressFill.style.width = pct + "%";
+    progressPercent.textContent = pct + "% received";
+    progressRemain.textContent = missing + " remaining";
+
+    badgeAll.textContent = total;
+    badgeReceived.textContent = received;
+    badgeMissing.textContent = missing;
+
+    renderList();
+  }
+
+  // ============================================================
+  // TABS & SEARCH
+  // ============================================================
+  document.querySelectorAll(".tab-btn").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      document.querySelectorAll(".tab-btn").forEach(function(b) { b.classList.remove("active"); });
+      btn.classList.add("active");
+      activeTab = btn.getAttribute("data-tab");
+      renderList();
+      scheduleSave();
+    });
+  });
+
+  searchInput.addEventListener("input", function() {
+    searchQuery = this.value.trim().toLowerCase();
+    renderList();
+  });
+
+  function renderList() {
+    var filtered = [];
+    for (var i = 0; i < allIds.length; i++) {
+      var item = allIds[i];
+      if (activeTab === "received" && !item.received) continue;
+      if (activeTab === "missing" && item.received) continue;
+      if (searchQuery) {
+        var haystack = (item.fullId + " " + item.last12).toLowerCase();
+        if (haystack.indexOf(searchQuery) === -1) continue;
+      }
+      filtered.push({ index: i, item: item });
+    }
+
+    if (filtered.length === 0) {
+      listBody.innerHTML = '<div class="empty-state"><i class="fa-solid fa-inbox"></i><p>' +
+        (allIds.length === 0 ? "Upload a file to get started" : "No items match your filter") + '</p></div>';
+      return;
+    }
+
+    var limit = Math.min(filtered.length, 200);
+    var html = "";
+    for (var j = 0; j < limit; j++) {
+      var f = filtered[j];
+      var statusClass = f.item.received ? "received" : "missing";
+      var statusText = f.item.received ? "Received" : "Missing";
+      html += '<div class="list-row">';
+      html += '<span class="row-num">' + (f.index + 1) + '</span>';
+      html += '<span class="row-id">' + escapeHtml(f.item.fullId) + '</span>';
+      html += '<span class="row-last8 col-last8">' + escapeHtml(f.item.last12) + '</span>';
+      html += '<span><span class="status-badge ' + statusClass + '">' + statusText + '</span></span>';
+      html += '</div>';
+    }
+    if (filtered.length > limit) {
+      html += '<div class="empty-state" style="padding:16px;"><p>Showing first 200 of ' + filtered.length + ' results</p></div>';
+    }
+    listBody.innerHTML = html;
+  }
+
+  // ============================================================
+  // EXPORT
+  // ============================================================
+  exportBtn.addEventListener("click", function() {
+    var csv = "Row,Full_ID,Last_12,Status\n";
+    for (var i = 0; i < allIds.length; i++) {
+      var item = allIds[i];
+      csv += (i + 1) + ',"' + item.fullId + '",' + item.last12 + ',' + (item.received ? "Received" : "Missing") + "\n";
+    }
+    downloadFile(csv, "inventory_tracking.csv", "text/csv");
+  });
+
+  exportMissingBtn.addEventListener("click", function() {
+    var csv = "Row,Full_ID,Last_12\n";
+    var row = 0;
+    for (var i = 0; i < allIds.length; i++) {
+      if (!allIds[i].received) {
+        row++;
+        csv += row + ',"' + allIds[i].fullId + '",' + allIds[i].last12 + "\n";
+      }
+    }
+    if (row === 0) { showToast("All items have been received!"); return; }
+    downloadFile(csv, "missing_items.csv", "text/csv");
+  });
+
+  function downloadFile(content, filename, mime) {
+    var blob = new Blob([content], { type: mime });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // ============================================================
+  // RESET SCANS (keeps ID list)
+  // ============================================================
+  resetScansBtn.addEventListener("click", function() {
+    var receivedCount = 0;
+    for (var i = 0; i < allIds.length; i++) {
+      if (allIds[i].received) receivedCount++;
+    }
+    if (receivedCount === 0) { showToast("No scans to reset."); return; }
+
+    showConfirmDialog(
+      "fa-rotate-left",
+      "Reset Scans",
+      "This will mark all <strong>" + receivedCount + " received</strong> item(s) back to missing and clear scan history.",
+      "The ID list will stay loaded. This cannot be undone.",
+      "Reset Scans",
+      false,
+      function() {
+        for (var i = 0; i < allIds.length; i++) allIds[i].received = false;
+        scanLog = [];
+        barcodeInput.value = "";
+        inputFeedback.textContent = "";
+        scanHistory.style.display = "none";
+        scanHistoryList.innerHTML = "";
+        updateDashboard();
+        barcodeInput.focus();
+        saveState();
+        showToast("Scan history reset. " + allIds.length + " IDs remain loaded.");
+      }
+    );
+  });
+
+  // ============================================================
+  // RESET ALL DATA
+  // ============================================================
+  resetBtn.addEventListener("click", function() {
+    showConfirmDialog(
+      "fa-trash-can",
+      "Reset All Data",
+      "This will permanently delete <strong>all loaded IDs, scan history, and saved progress</strong>.",
+      "You will need to re-upload your ID file to start again. This cannot be undone.",
+      "Yes, Delete Everything",
+      true,  // danger = true → red confirm button style
+      function() {
+        allIds = [];
+        last12Map = {};
+        scanLog = [];
+        searchQuery = "";
+        activeTab = "all";
+        searchInput.value = "";
+        barcodeInput.value = "";
+        inputFeedback.textContent = "";
+        scanHistory.style.display = "none";
+        scanHistoryList.innerHTML = "";
+        uploadZone.classList.remove("has-file");
+        uploadZone.querySelector(".upload-icon").className = "fa-solid fa-cloud-arrow-up upload-icon";
+        uploadZone.querySelector(".upload-text").textContent = "Drop your text file here or tap to browse";
+        uploadZone.querySelector(".upload-hint").textContent = "One ID per line (12+ digits; last 12 used for matching)";
+        fileInput.value = "";
+        inputCard.style.display = "none";
+        dashboardCard.style.display = "none";
+        persistBadge.style.display = "none";
+        document.querySelectorAll(".tab-btn").forEach(function(b) { b.classList.remove("active"); });
+        document.querySelector('.tab-btn[data-tab="all"]').classList.add("active");
+        clearStorage();
+        showToast("All data cleared.");
+      }
+    );
+  });
+
+  // ============================================================
+  // CONFIRM DIALOG (enhanced with warning block)
+  // ============================================================
+  function showConfirmDialog(icon, title, bodyHtml, warningText, confirmLabel, isDanger, onConfirm) {
+    var container = document.getElementById("modalContainer");
+    var overlay = document.createElement("div");
+    overlay.className = "modal-overlay";
+
+    var confirmBtnClass = isDanger ? "btn btn-danger" : "btn btn-secondary";
+
+    overlay.innerHTML =
+      '<div class="modal-box">' +
+        '<h3><i class="fa-solid ' + icon + '" style="margin-right:8px;color:var(--' + (isDanger ? 'danger' : 'text-tertiary') + ')"></i>' + escapeHtml(title) + '</h3>' +
+        '<p>' + bodyHtml + '</p>' +
+        '<div class="modal-warning"><i class="fa-solid fa-triangle-exclamation"></i><span>' + escapeHtml(warningText) + '</span></div>' +
+        '<div class="modal-actions">' +
+          '<button class="btn btn-secondary modal-cancel">Cancel</button>' +
+          '<button class="' + confirmBtnClass + ' modal-confirm">' + escapeHtml(confirmLabel) + '</button>' +
+        '</div>' +
+      '</div>';
+
+    container.appendChild(overlay);
+
+    overlay.querySelector(".modal-cancel").addEventListener("click", function() { overlay.remove(); });
+    overlay.querySelector(".modal-confirm").addEventListener("click", function() {
+      overlay.remove();
+      onConfirm();
+    });
+    overlay.addEventListener("click", function(e) {
+      if (e.target === overlay) overlay.remove();
+    });
+
+    // Focus cancel by default for safety
+    setTimeout(function() { overlay.querySelector(".modal-cancel").focus(); }, 50);
+  }
+
+  // ============================================================
+  // TOAST
+  // ============================================================
+  function showToast(message) {
+    var container = document.getElementById("toastContainer");
+    container.innerHTML = "";
+    var toast = document.createElement("div");
+    toast.className = "toast";
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(function() { if (toast.parentNode) toast.remove(); }, 3000);
+  }
+
+  // ——— Escape HTML ———
+  function escapeHtml(str) {
+    var div = document.createElement("div");
+    div.appendChild(document.createTextNode(String(str)));
+    return div.innerHTML;
+  }
+
+})();
+</script>
+</body>
+</html>
